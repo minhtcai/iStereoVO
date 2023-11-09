@@ -1,0 +1,189 @@
+\documentclass[10pt,letterpaper]{article}
+\usepackage{setspace}
+\usepackage[utf8]{inputenc}
+\usepackage[top=1in,bottom=1in,right=1.0in,left=1.0in]{geometry}
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath,amssymb} % define this before the line numbering.
+\usepackage{color}
+\usepackage[breaklinks=true,bookmarks=false,colorlinks=true,citecolor=green,urlcolor=blue,linkcolor=black]{hyperref}
+\usepackage{booktabs}
+\usepackage{epstopdf}
+\usepackage{pdfpages}
+\usepackage{hyphenat}
+\usepackage{fancyhdr}
+\usepackage{wrapfig}
+\usepackage[font=small,labelfont=bf]{caption}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{parskip}
+\pagenumbering{gobble}
+
+\title{
+\Large{\textbf{Project Proposal: \\
+Pose Estimation using Stereo Visual-Inertial Odometry from Aerial Imaging}}
+}
+
+\date{}
+\author{
+  \textbf{Project Team 2} \\
+  Madankumar Sathenahally Nagaraju & Christian Berger & Minh Tran \\
+  % Carnegie Mellon University\\
+  % Pittsburgh, PA 15217 \\
+  % \texttt{minht@cs.cmu.edu} \\
+  % \And
+  % Co Author \\
+  % Affiliation \\
+  % Address \\
+  % \texttt{email} \\
+}
+\usepackage{lastpage}
+
+\begin{document}
+
+\maketitle
+\thispagestyle{empty}
+
+\section*{Background}
+The rapid rise of unmanned aerial vehicles (UAVs) or drones in various applications, ranging from agriculture to surveillance and urban planning, has accentuated the need for accurate aerial localization and mapping. Traditionally, drones rely on Global Positioning Systems (GPS) and Inertial Measurement Units (IMUs) for pose estimation and localization. However, reliance on the GPS is ill-advised in remote areas or combat situations, where inaccuracies due to multi-path effects, signal blockage, or interference are common. There is, therefore, a growing interest in leveraging on-board sensors, particularly cameras, to aid and enhance the pose estimation and localization process.
+
+% The fusion of geometric information derived from the drone's pose (X, Y, Z, roll, pitch, yaw) with the visual data from its camera offers a compelling pathway to improve localization. First by providing a more stable initial guess or constraint from pose for the calibration process, leading to more accurate results. Second, from the drone's orientation, one can predict the perspective from which the landmarks on the ground are viewed. This geometric insight can guide the feature extraction process, prioritizing landmarks that are likely to be distinct and stable across different views and altitudes. Finally, landmarks detected on the ground can be triangulated using the drone's pose and camera parameters. These 3D points can then be used to refine the drone's pose using techniques like Bundle Adjustment. Furthermore, by maintaining a map of these landmarks, the drone can achieve more robust and accurate localization, even in environments where GPS signals are weak or unreliable.
+
+Visual-Inertial Odometry (VIO) is the method of estimating the state (pose and velocity) of a robot using only the input of one or more cameras in addition to one or more IMUs. VIO is a viable alternative to GPS and LiDAR-based odometry to achieve accurate state estimation. Although LiDAR systems are very effective at sensing depth information, their built-in bulk and cost is prohibitive to most drone applications. Cameras and IMUs are significantly cheaper and lighter than these LiDAR-based solutions. The use of \textit{stereo} cameras, specifically, provides depth information for all views of the scene and removes the scale ambiguity inherent in monocular vision. 
+
+% Visual Odometry
+% Classical: Direct: Optical Flow - Bundle Adjustment. Indirect: Feature Extracing, Fund Matrix.
+% Learning-based: Monocular TartanVEVO => Optical Flow from NN, scale ambiguous of monocular. => Stereo camera (2023). Track stereo Visual SLAM Method?
+%  https://www.mdpi.com/2076-3417/13/10/5842
+% https://github.com/VaidehiSom/StereoVO
+% https://theairlab.org/tartanair-dataset/
+
+
+% Depth + Optical Flow (Images) => 2 networks => another network => pose.
+% Need to convince why to use stereo view
+% We will follow this methodology but in another implementation
+ 
+% https://www.sightec.com/navsight/
+% https://www.youtube.com/watch?v=ilIBzMu8QDY
+% https://tipsfordrones.com/can-drones-fly-without-gps/
+\section*{Goal \& Related Works}
+The primary objective of this project is to combine different modalities of data to predict the pose of the camera. The data includes stereo RGB images and IMU measurements. 
+
+The stereo images are chosen because they avoid the scale ambiguity inherent in monocular VO. The addition of inertial measurements will help in a reliable pose estimation, since visual information becomes unreliable in the case of sparse feature descriptors and high illumination variation in the scene. 
+
+VIO methodologies can be split into two categories: geometry-based methods and learning-based methods. Geometry-based methods include the following steps: stereo rectification, feature extraction, and matching, which is then followed by incremental pose recovery. According to epipolar geometry theory, the geometry-based VO comes in two steps. First, visual features are extracted and matched from $I_t$ and $I_{t+1}$. Then, the essential matrix is computed using the matching results \cite{beall2014stereo}. The geometry-based methods are complex, and fine adjustment is required for each module to achieve good performance. 
+
+Learning-based methods include the following steps: optical flow and depth estimation from a matching network followed by pose estimation from predicted depth and optical flows. Learning-based pose estimation from monocular images has been proposed in tartanvo\cite{tartanvo2020corl}, which follows a two-stage network architecture. First, it estimates optical flow from two consecutive RGB images. Then, it predicts camera motion from the optical flow using a pose network .
+Chao et al \cite{duan2023stereovo} leverages stereo image pairs to recover scale and employ optical flow and depth information to consider the effects of dynamic objects.
+
+There are two paradigms to incorporate inertial measurements with visual features for pose estimation: the loosely-coupled method and the tightly-coupled method.  Loosely-coupled methods process visual and inertial measurements separately by computing two independent motion estimates that are then fused to get the final output. Tightly-coupled methods compute the final output directly from the raw camera and IMU measurements. Tightly-coupled approaches are more accurate than the loosely-coupled ones because loosely-coupled approaches do not consider the visual and inertial information coupling, making them incapable of correcting drift in the vision-only estimator. Filtering approaches such as Extended Kalman filters have been proposed in performing sensor fusion of images and IMU data for pose estimation \cite{bloesch2015robust}.
+
+\section*{Methods}
+\subsection*{Data Preprocessing Pipeline}
+The dataset for model training will be mainly from TartanAir \cite{tartanair2020iros}. TartanAir is a large scale dataset with highly diverse scenes and motion patterns, containing more than 400,000 data frames. It provides multi-modal ground truth labels including depth, segmentation, optical flow, and camera pose. The scenes include indoor, outdoor, urban, nature, and sci-fi environments. The data is collected with a simulated pinhole camera, which moves with random and rich 6-DoF motion patterns in the 3D space.
+
+The second source of training data will come from Sage AI Labs, which includes K videos captured from an aerial perspective using a downward-facing camera with geolocation capabilities. We will extract individual frames from these videos and synchronize each frame with its corresponding pose data.
+
+\subsection*{Estimating depth and optical flow}
+Taking two consecutive RGB stereo images, dense depth and optical flow will be predicted. We can use TartanVO and ORB-SLAM \cite{orb} as a baselines. We can use the image sequences, the optical flow labels, and the ground truth camera motions in our task. The objective is to jointly minimize the optical flow loss and the camera motion loss. We can use PWC-Net as the matching network to produce optical flow. We can build a stereo matching network to predict depth from stereo RGB images.
+
+\subsection*{Pose estimation}
+We will estimate the pose of the camera from the predicted flow and depth. We will also estimate the pose of the camera from the predicted flow and depth, as well as the inertial measurements. Pose estimation will be done in two variants and evaluated with respect to the baselines in terms of  average translational RMSE drift and average rotational RMSE drift along the trajjectories. We can train a MLP to model the inertial measurements and a ResNet-style network as the pose network. The model will be tested on real world datasets such as KITTI dataset \cite{kitti} and Euroc dataset \cite{euroc}
+% \subsection*{Map Construction and Update}
+% \begin{itemize}
+%     \item Construct and keep track of 2D map.
+% \end{itemize}
+% \subsection*{Localization}
+% \begin{itemize}
+%     \item Utilize the constructed map and real-time image capture to localize the drone in environments where GPS is unavailable.
+% \end{itemize}
+% \subsection*{Structure from Motion}
+% \begin{itemize}
+%     \item Estimate 3D structure of scene from images.
+% \end{itemize}
+
+\subsection*{Project Timeline}
+\begin{table}[!h]
+\centering
+\tiny
+% \caption{Project Timeline.}
+% \resizebox{\columnwidth}{!}{%
+% \resizebox{\textwidth}{!}{%
+\resizebox{12cm}{!}{
+\begin{tabular}{p{0.25cm}p{5cm}}% {|c|c|}
+\hline
+\textbf{Week} & \textbf{Objectives} \\
+\hline
+10/10 & Finalize Project Proposal. \\
+\hline
+10/16 & Fall Break. Compile datasets from Sage AI and AirLab. \\
+\hline
+10/23 & Data Exploration. Explore TartanVO codebase. \\
+\hline
+10/30 & Adapt TartanVO codebase to use stereo images. \\
+\hline
+11/6 & Adapt TartanVO codebase to use stereo images. \\
+\hline
+11/13 & Build baselines with TartanVO. \\
+\hline
+11/20 & Add inertial data to our system. \\
+\hline
+11/27 & Final benchmark. \\
+\hline
+12/4 & Final Presentation and Report. \\
+\hline
+\end{tabular}\label{table:timeline}
+}
+\end{table}
+
+\section*{Success Criteria}
+\textbf{Pose Estimation Accuracy:} The estimated pose should be compared to ground truth and average translational RMSE drift and average rtational RMSE drift is comapred with the performance of baselines. \\
+% \textbf{Map Consistency and Quality}: The constructed map should be consistent with the real environment, with minimal artifacts or gaps. \\
+\textbf{Robustness in Diverse Environments:} The system should perform reliably in a range of environments, from natural landscapes to cluttered urban.
+\textbf{Generalization to real world data:} Since the Tartanair dataset is synthetic, model should generalize to real-world datasets KITTI dataset and Euroc dataset without finetuning.
+
+% \section*{This part will NOT be in the proposal}
+
+% For Geometry-based vision, how about this one: I have tons of video of drones flying outside, say 100m high with a down-facing camera. What can you do with this? 
+% \begin{itemize}
+%     \item Can you calibrate the camera intrinsics/extrinsics? What if we have 6 DOF pose (pitch, yaw, roll, X, Y, Z) from a kalman filter for each video frame?
+%     \item Can you make coherent ground map tiles, in the style of google maps satellite imagery? 
+%     \item Can you create a point cloud using structure from motion? 
+% \end{itemize}
+
+% \section*{Part I: Drone Localization and Mapping}
+% \begin{itemize}
+%     \item Q1: Type of cameras beside RGB/Stereo/Fisheye/Infrared
+%     \item Q2: Type of data beside RGB and IMU? Depth/Infrared/Optical Flow/Compass/Barometer Rtk.
+%     \item Q3: Size of accessible data (please share data sample if possible)
+%     \item Q4: Data info if known: Ground Sampling Distance, Camera, Lenses, Metadata (GeoTIFF, EXIF)
+%     \item Desired output 1: Camera calibration.
+%     \item Desired output 2: Pose estimation and localization.
+%     \item Desired output 3: Mapping.
+% \end{itemize}
+
+% \section*{Part II: 3D Reconstruction}
+% \begin{itemize}
+%     \item Q1: What's it for? From the discussion, it seems that beside localization, we would care more about detection and tracking. 
+%     \item Q2: What's the desired level of accuracy? (i.e compare to Google Earth Engine)
+%     \item Q3: Probably additional sensors will be required (e.g. depth, infrared), solely geometry propably won't be an efficient approach. If we can get 15 cm per pixel, then it will be more reliable.
+%     \item Desired output: Pointclouds of map.
+% \end{itemize}
+
+
+% That said, any proposal you submit should try to answer a few basic questions:
+% \begin{itemize}
+%     \item What is the goal of the project, and why is it worth doing?
+%     \item What will you need to do to achieve this goal? 
+%     \item How does your project relate to research/systems that exist?
+%     \item If you are doing something new in terms of an approach, why are current methods not sufficient? And what are your key ideas/insights that make you believe you might succeed?
+%     \item How will success be measured -- qualitatively/quantitatively? Are there any datasets/metrics you plan to use for training/evaluation?
+% \end{itemize}
+
+
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+
+\end{document}
