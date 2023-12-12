@@ -6,7 +6,7 @@ def get_args():
     parser.add_argument('--working-dir', default='./',
                         help='working directory')
 
-    parser.add_argument('--exp-prefix', default='stereo_',
+    parser.add_argument('--exp-prefix', default='stereonly_1_',
                         help='exp prefix')
 
     parser.add_argument('--lr', type=float, default=1e-4,
@@ -39,7 +39,7 @@ def get_args():
     parser.add_argument('--worker-num', type=int, default=1,
                         help='data loader worker number (default: 1)')
 
-    parser.add_argument('--train-step', type=int, default=20000,
+    parser.add_argument('--train-step', type=int, default=40000,
                         help='number of interactions in total (default: 1000000)')
 
     parser.add_argument('--snapshot', type=int, default=1000,
@@ -114,7 +114,7 @@ def get_args():
     parser.add_argument('--no-data-augment', action='store_true', default=False,
                         help='no data augmentation (default: False)')
 
-    parser.add_argument('--multi-gpu', type=int, default=1,
+    parser.add_argument('--multi-gpu', type=int, default=2,
                         help='multiple gpus numbers (default: False)')
 
     parser.add_argument('--platform', default='local',
@@ -275,10 +275,10 @@ def get_args():
     parser.add_argument('--fix-stereo', action='store_true', default=False,
                         help='when train-stereo=Ture, fix stereonet and train vo (default: False)')
 
-    parser.add_argument('--load-stereo-model', action='store_true', default=False,
+    parser.add_argument('--load-stereo-model', action='store_true', default=True,
                         help='Flow load pretrained stereo model (default: False)')
 
-    parser.add_argument('--stereo-model', default='',
+    parser.add_argument('--stereo-model', default='stereonly_1_stereoflow_20000.pkl',
                         help='In end2end training, the name of pretrained stereo model')
 
     parser.add_argument('--train-stereo', action='store_true', default=False,

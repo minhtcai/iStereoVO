@@ -17,14 +17,12 @@ def make_intrinsics_layer(intrinsics):
     intrinsicLayer = np.stack((ww, hh)).transpose(1,2,0)
     return intrinsicLayer
 
-class CustomDataset(Dataset):
-    ''' Loads samples from any combination of environments specified. 
-        Loads motion (tx, ty, tz, rotation[3]), depth, and the flow mask.
-        Allows accessing individual samples by their environment, trajectory index, and sample index.
+class EurocDataset(Dataset):
+    ''' Loads samples from any combination of trajectories specified. 
     '''
-    def __init__(self, base_path, envs, load_depth=True, load_disparity=True, load_flow=True, 
+    def __init__(self, base_path, trajectories, load_depth=True, load_disparity=True, load_flow=True, 
                  load_left_img=True, load_right_img=True, load_next_img=True,  
-                 left_camera=True, data_fast=False, img_scale=1.0, flow_depth_scale=1.0):
+                 left_camera=True, img_scale=1.0, flow_depth_scale=1.0):
         self.base_path = base_path
         self.load_depth = load_depth
         self.load_disparity = load_disparity
@@ -33,57 +31,56 @@ class CustomDataset(Dataset):
         self.load_right_img = load_right_img
         self.load_next_img = load_next_img
         self.camera_type = 'left' if left_camera else 'right'
-        self.data_fast = 'Data_fast' if data_fast else 'Data'
         self.img_scale = img_scale
         self.flow_depth_scale = flow_depth_scale
         
-        self.envs = envs
+        self.trajs = trajectories
         self.data = {}
         self.num_samples = 0
         self.idx_map = []
-        for env_idx, env_tup in enumerate(envs):
-            env, num_trajectories = env_tup
-            env_path = os.path.join(self.base_path, env, self.data_fast)
-            p_paths = sorted([os.path.join(env_path, P) for P in os.listdir(env_path)])
-            p_paths = p_paths[:num_trajectories]
-            self.data[env] = []
-            for p_idx, p_path in enumerate(p_paths):
-                p_data = {}
-                
-                # Load the images:
-                if self.load_left_img or (self.load_next_img and self.camera_type == 'left'):
-                    left_img_files = sorted([os.path.join(p_path, f'image_left', f) for f in os.listdir(os.path.join(p_path, f'image_left')) if f.endswith(f'left.png')])
-                    p_data['left_img_files'] = left_img_files
-                if self.load_right_img or (self.load_next_img and self.camera_type == 'right'):
-                    right_img_files = sorted([os.path.join(p_path, f'image_right', f) for f in os.listdir(os.path.join(p_path, f'image_right')) if f.endswith(f'right.png')])
-                    p_data['right_img_files'] = right_img_files
-                
-                # Load the motion data (except the last)
-                motion_file_path = os.path.join(p_path, 'motion_%s.npy' % self.camera_type)
-                motion_data = np.load(motion_file_path)
-                motion_data = motion_data[:-1]
-                p_data['motion_data'] = motion_data
-                self.idx_map += [[env_idx, p_idx, data_idx] for data_idx in range(len(motion_data))]
-                self.num_samples += len(motion_data)
+        for p_idx, p in enumerate(self.trajs):
+            p_path = os.path.join(self.base_path, p)
+            p_data = {}
+            
+            # Load the images:
+            if self.load_left_img or (self.load_next_img and self.camera_type == 'left'):
+                left_img_files = sorted([os.path.join(p_path, f'cam0', 'data2', f) 
+                                         for f in os.listdir(os.path.join(p_path, f'cam0', 'data2')) 
+                                         if f.endswith(f'.png')])
+                p_data['left_img_files'] = left_img_files
+            if self.load_right_img or (self.load_next_img and self.camera_type == 'right'):
+                right_img_files = sorted([os.path.join(p_path, f'cam1', 'data2', f) 
+                                          for f in os.listdir(os.path.join(p_path, f'cam1', 'data2')) 
+                                          if f.endswith(f'.png')])
+                p_data['right_img_files'] = right_img_files
+            
+            # Load the motion data (except the last)
+            motion_file_path = os.path.join(p_path, f'motion.txt')
+            motion_data = np.loadtxt(motion_file_path)
+            motion_data = motion_data[:-1]
+            p_data['motion_data'] = motion_data
+            self.idx_map += [[p_idx, data_idx] for data_idx in range(len(motion_data))]
+            self.num_samples += len(motion_data)
 
-                # Depth and flow file paths (except the last)
-                if self.load_depth or self.load_disparity:
-                    depth_files = sorted([os.path.join(p_path, 'depth_%s' % self.camera_type, f) 
-                                          for f in os.listdir(os.path.join(p_path, f'depth_%s' % self.camera_type))
-                                          if f.endswith('%s_depth.png' % self.camera_type)])
-                    # import pdb;pdb.set_trace()
-                    depth_files = depth_files[:-1]
-                    # print(len(depth_files))
-                    p_data['depth_files'] = depth_files
-                    
-
-                if self.load_flow:
-                    flow_files = sorted([os.path.join(p_path, 'flow', f) for f in os.listdir(os.path.join(p_path, 'flow')) if f.endswith('_flow.png')])
-                    # mask_files = sorted([os.path.join(p_path, 'flow', f) for f in os.listdir(os.path.join(p_path, 'flow')) if f.endswith('_mask.npy')])
-                    # print(len(flow_files))
-                    p_data['flow_files'] = flow_files
-                
-                self.data[env].append(p_data)                
+            # Disparity and flow file paths (except the last)
+            if self.load_depth or self.load_disparity:
+                disp_files = sorted([os.path.join(p_path, f'cam0', f'disp_hsm', f) 
+                                     for f in os.listdir(os.path.join(p_path, f'cam0', f'disp_hsm')) 
+                                     if f.endswith(f'.png')])
+                # import pdb;pdb.set_trace()
+                disp_files = disp_files[:-1]
+                # print(len(depth_files))
+                p_data['disp_files'] = disp_files
+            
+            if self.load_flow:
+                flow_files = sorted([os.path.join(p_path, 'cam0', 'flow', f) 
+                                     for f in os.listdir(os.path.join(p_path, 'cam0', 'flow')) 
+                                     if f.endswith('_flow.png')])
+                # mask_files = sorted([os.path.join(p_path, 'flow', f) for f in os.listdir(os.path.join(p_path, 'flow')) if f.endswith('_mask.npy')])
+                # print(len(flow_files))
+                p_data['flow_files'] = flow_files
+            
+            self.data[p] = p_data                             
 
     def __len__(self):
         # The length of the dataset is determined by the number of motion samples
@@ -91,15 +88,29 @@ class CustomDataset(Dataset):
 
     def visualize_depth(self, idx, maxthresh = 50):
         # Load
-        env_idx, p_idx, data_idx = self.idx_map[idx]
-        env = self.envs[env_idx][0]
+        p_idx, data_idx = self.idx_map[idx]
+        p = self.trajs[p_idx]
         
-        depth_path = self.data[env][p_idx]['depth_files'][data_idx]
-            
-        depth_rgba = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-        assert depth_rgba is not None, "Error loading depth {}".format(depth_path)
+        disp_path = self.data[p]['disp_files'][data_idx]
+           
+        # image_object = png.Reader(filename=disp_path)
+        # image_direct = image_object.asDirect()
+        # image_data = list(image_direct[2])
+        # (w, h) = image_direct[3]['size']
+        # channel = len(image_data[0]) / w
+        # disp = np.zeros((h, w, channel), dtype=np.uint16)
+        # for i in range(len(image_data)):
+        #     for j in range(channel):
+        #         disp[i, :, j] = image_data[i][j::channel]
+        # disp = disp[:, :, 0] / 256 
         
-        depth = depth_rgba.view("<f4")
+        
+        disp_rgba = cv2.imread(disp_path, cv2.IMREAD_UNCHANGED)
+        assert disp_rgba is not None, "Error loading disparity {}".format(disp_path)
+        
+        disp = disp_rgba.view("<f4")
+        
+        depth = 458*0.11 / (disp + 10e-6)
         
         # Visualize
         depth = depth.reshape(depth.shape[:-1]) # (H, W)
@@ -126,10 +137,10 @@ class CustomDataset(Dataset):
     
     def visualize_flow(self, idx, maxF=500.0, n=8, mask=True, hueMax=179, angShift=0.0):
         # Load
-        env_idx, p_idx, data_idx = self.idx_map[idx]
-        env = self.envs[env_idx][0]
+        p_idx, data_idx = self.idx_map[idx]
+        p = self.trajs[p_idx]
         
-        flow_path = self.data[env][p_idx]['flow_files'][data_idx]
+        flow_path = self.data[p]['flow_files'][data_idx]
         
         flow16 = cv2.imread(flow_path, cv2.IMREAD_UNCHANGED)
         assert flow16 is not None, "Error loading flow {}".format(flow_path)
@@ -137,7 +148,7 @@ class CustomDataset(Dataset):
         flow32 = flow16[:,:,:2].astype(np.float32)
         flow32 = (flow32 - 32768) / 64.0
         
-        mask8 = flow16[:,:,2].astype(np.uint8)
+        # mask8 = flow16[:,:,2].astype(np.uint8)
         
         # Visualize
         ang, mag, _ = self._calculate_angle_distance_from_du_dv( flow32[:, :, 0], flow32[:, :, 1], flagDegree=False )
@@ -158,9 +169,9 @@ class CustomDataset(Dataset):
 
         rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2RGB)
 
-        if mask:
-            mask8 = mask8 > 0
-            rgb[mask8] = np.array([0, 0 ,0], dtype=np.uint8)
+        # if mask:
+        #     mask8 = mask8 > 0
+        #     rgb[mask8] = np.array([0, 0 ,0], dtype=np.uint8)
         
         return rgb
         
@@ -171,21 +182,21 @@ class CustomDataset(Dataset):
         rgb = self.visualize_flow(idx, maxF=flow_maxF, n=flow_n, mask=flow_mask, 
                                   hueMax=flow_hueMax, angShift=flow_angShift)
         # Get image
-        env_idx, p_idx, data_idx = self.idx_map[idx]
-        env = self.envs[env_idx][0]
-        left_img_path = self.data[env][p_idx]['left_img_files'][data_idx]
-        img = plt.imread(left_img_path)
+        p_idx, data_idx = self.idx_map[idx]
+        p = self.trajs[p_idx]
+        left_img_path = self.data[p]['left_img_files'][data_idx]
+        img = cv2.imread(left_img_path)
         
         # Plot
-        fig, axs = plt.subplots(1,3,clear=True, figsize=(12,7))
+        fig, axs = plt.subplots(1,3,clear=True, figsize=(15,5))
         axs[0].imshow(img)
         axs[0].set_title('Image')
         axs[1].imshow(depthvis)
         axs[1].set_title('Depth')
         axs[2].imshow(rgb)
         axs[2].set_title('Flow')
-        fig.savefig("/data1/datasets/msathena/workspace/stereo/visualizations/full_%06d_%s_%03d_%06d" 
-                    % (idx,env,p_idx,data_idx))
+        fig.savefig("/data1/datasets/msathena/workspace/stereo/Euroc_vis/full_%06d_%02d_%06d" 
+                    % (idx,p_idx,data_idx))
         fig.clear()
         plt.close(fig)
     
@@ -200,49 +211,50 @@ class CustomDataset(Dataset):
         #                   antialias=True)
         # Batch size, 3 channels, H, W
     
-    def get_by_env(self, env, p_idx, data_idx):
+    def get_by_traj(self, p, data_idx):
         data = {}
         
         # Load images
         if self.load_left_img:
-            left_img_path = self.data[env][p_idx]['left_img_files'][data_idx]
+            left_img_path = self.data[p]['left_img_files'][data_idx]
             data['left_img'] = self.load_img(left_img_path)
         if self.load_right_img:
-            right_img_path = self.data[env][p_idx]['right_img_files'][data_idx]
+            right_img_path = self.data[p]['right_img_files'][data_idx]
             data['right_img'] = self.load_img(right_img_path)
         if self.load_next_img:
-            next_img_path = self.data[env][p_idx][f'{self.camera_type}_img_files'][data_idx+1]
+            next_img_path = self.data[p][f'{self.camera_type}_img_files'][data_idx+1]
             data['next_img'] = self.load_img(next_img_path)
         
         # Load motion data and convert to float
-        motion = self.data[env][p_idx]['motion_data'][data_idx].astype(np.float32)
+        motion = self.data[p]['motion_data'][data_idx].astype(np.float32)
         data['motion'] = torch.from_numpy(motion)
         # Batch size, [tx, ty, tz, r...]
 
         # Load and convert depth data to float
         if self.load_depth or self.load_disparity:
-            depth_path = self.data[env][p_idx]['depth_files'][data_idx]
+            disp_path = self.data[p]['disp_files'][data_idx]
             
-            depth_rgba = cv2.imread(depth_path, cv2.IMREAD_UNCHANGED)
-            assert depth_rgba is not None, "Error loading depth {}".format(depth_path)
+            disp_rgba = cv2.imread(disp_path, cv2.IMREAD_UNCHANGED)
+            assert disp_rgba is not None, "Error loading disparity {}".format(disp_path)
             
-            depth = depth_rgba.view("<f4")
+            disp = disp_rgba.view("<f4")
             
-            h, w = depth.shape[:2]
-            depth = torch.from_numpy(depth.transpose(2,0,1))
-            # data['depth'] = trf.resize(depth, (int(h*self.flow_depth_scale), int(w*self.flow_depth_scale)), 
+            # h, w = disp.shape[:2]
+            disp = torch.from_numpy(disp.transpose(2,0,1))
+            # data['disp'] = trf.resize(disp, (int(h*self.flow_disp_scale), int(w*self.flow_disp_scale)), 
             #                            antialias=True)
-            # data['depth'] = trf.interpolate(depth, (int(h*self.flow_depth_scale), int(w*self.flow_depth_scale)), mode= 'linear',
+            # data['disp'] = trf.interpolate(disp, (int(h*self.flow_disp_scale), int(w*self.flow_disp_scale)), mode= 'linear',
             #                            align_corners=True)
             if self.load_depth:
-                data['depth'] = depth
+                data['depth'] = 458*0.11 / (disp + 10e-6)
+                # From https://github.com/raulmur/ORB_SLAM2/issues/32 (focal length checked with dataset)
             if self.load_disparity:
-                data['disparity'] = 80.0 / (depth + 10e-6)
+                data['disparity'] = disp
             # Batch size, 1 channel, H, W
 
         # Load and convert optical flow data to float
         if self.load_flow:
-            flow_path = self.data[env][p_idx]['flow_files'][data_idx]
+            flow_path = self.data[p]['flow_files'][data_idx]
             
             flow16 = cv2.imread(flow_path, cv2.IMREAD_UNCHANGED)
             assert flow16 is not None, "Error loading flow {}".format(flow_path)
@@ -250,12 +262,11 @@ class CustomDataset(Dataset):
             flow32 = flow16[:,:,:2].astype(np.float32)
             flow32 = (flow32 - 32768) / 64.0
             
-            mask8 = flow16[:,:,2].astype(np.uint8)
-            # print(np.unique(mask8))
-            mask8 = mask8 > 0
-            flow32[mask8] = np.array([0, 0], dtype=np.float32)
+            # mask8 = flow16[:,:,2].astype(np.uint8)
+            # mask8 = mask8 > 0
+            # flow32[mask8] = np.array([0, 0], dtype=np.float32)
             
-            h, w = flow32.shape[:2] 
+            # h, w = flow32.shape[:2]
             flow32 = torch.from_numpy(flow32.transpose(2,0,1))
             # data['flow'] = trf.resize(flow32, (int(h*self.flow_depth_scale), int(w*self.flow_depth_scale)), 
             #                           antialias=True)
@@ -267,45 +278,33 @@ class CustomDataset(Dataset):
         return data
     
     def __getitem__(self, idx):
-        env_idx, p_idx, data_idx = self.idx_map[idx]
-        env = self.envs[env_idx][0]
-        return self.get_by_env(env, p_idx, data_idx)
+        p_idx, data_idx = self.idx_map[idx]
+        p = self.trajs[p_idx]
+        return self.get_by_traj(p, data_idx)
         
 
 if __name__ == "__main__":
     # Example usage
-    base_path = '/project/learningvo/tartanair_v1_5'
-    environments = [ # [Environment name, Number of Trajectories to Load]
-                    #  ['abandonedfactory', 2],
-                    #  ['abandonedfactory_night', 1],
-                    #  ['house',-1]
-                    #  ['oldtown',-1],
-                    #  ['house_dist0',-1],
-                    #  ['seasidetown',-1],
-                    #  ['amusement',-1],
-                    #  ['japanesealley',-1],
-                    #  ['seasonsforest',-1],
-                    #  ['carwelding',-1],
-                    #  ['neighborhood',-1],
-                    #  ['seasonsforest_winter',-1],
-                     ['endofworld',-1],
-                    #  ['occ',-1],
-                    #  ['slaughter',-1],
-                    #  ['gascola',-1],
-                    #  ['ocean',-1],
-                    #  ['soulcity',-1],
-                    #  ['hongkongalley',-1],
-                    #  ['office',-1],
-                    #  ['westerndesert',-1],
-                    #  ['hospital',-1],
-                    #  ['office2',-1],
-                    ]
-    dataset = CustomDataset(base_path, envs=environments, load_depth=True, load_disparity=True, load_flow=True, 
+    base_path = '/project/learningvo/euroc'
+    trajectories = ['MH_01_easy_mav0_StereoRectified',
+                    # 'MH_02_easy_mav0_StereoRectified',
+                    # 'MH_03_medium_mav0_StereoRectified',
+                    # 'MH_04_difficult_mav0_StereoRectified',
+                    # 'MH_05_difficult_mav0_StereoRectified',
+                    # 'V1_01_easy_mav0_StereoRectified',
+                    # 'V1_02_medium_mav0_StereoRectified',
+                    # 'V1_03_difficult_mav0_StereoRectified',
+                    # 'V2_01_easy_mav0_StereoRectified',
+                    # 'V2_02_medium_mav0_StereoRectified',
+                    # 'V2_03_difficult_mav0_StereoRectified'
+                   ]
+    dataset = EurocDataset(base_path, trajectories=trajectories, load_depth=True, load_disparity=True, load_flow=True, 
                             load_left_img=True, load_right_img=True, load_next_img=True, left_camera=True)
     print(dataset[0]['left_img'].shape, dataset[0]['right_img'].shape, dataset[0]['next_img'].shape, 
           dataset[0]['motion'].shape, dataset[0]['depth'].shape, dataset[0]['disparity'].shape, dataset[0]['flow'].shape)
     for i in np.random.choice(len(dataset), 10, replace=False):
         dataset.visualize(i)
+    dataset.visualize(182)
     
     data_loader = DataLoader(dataset, batch_size=4, shuffle=True)
 
