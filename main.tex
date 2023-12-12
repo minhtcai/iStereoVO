@@ -20,7 +20,7 @@
 \pagenumbering{gobble}
 
 \title{
-\Large{\textbf{Project Proposal: \\
+\Large{\textbf{Final Report: \\
 Pose Estimation using Stereo Visual-Inertial Odometry from Aerial Imaging}}
 }
 
@@ -44,7 +44,15 @@ Pose Estimation using Stereo Visual-Inertial Odometry from Aerial Imaging}}
 \maketitle
 \thispagestyle{empty}
 
-\section*{Background}
+\section{Introduction}
+\begin{itemize}
+    \item remove inertial
+    \item compare with monucular
+    \item focus on stereo - learning-based compare to geometry
+    \item data
+    \item What and why? Need to be clear
+\end{itemize}
+
 The rapid rise of unmanned aerial vehicles (UAVs) or drones in various applications, ranging from agriculture to surveillance and urban planning, has accentuated the need for accurate aerial localization and mapping. Traditionally, drones rely on Global Positioning Systems (GPS) and Inertial Measurement Units (IMUs) for pose estimation and localization. However, reliance on the GPS is ill-advised in remote areas or combat situations, where inaccuracies due to multi-path effects, signal blockage, or interference are common. There is, therefore, a growing interest in leveraging on-board sensors, particularly cameras, to aid and enhance the pose estimation and localization process.
 
 % The fusion of geometric information derived from the drone's pose (X, Y, Z, roll, pitch, yaw) with the visual data from its camera offers a compelling pathway to improve localization. First by providing a more stable initial guess or constraint from pose for the calibration process, leading to more accurate results. Second, from the drone's orientation, one can predict the perspective from which the landmarks on the ground are viewed. This geometric insight can guide the feature extraction process, prioritizing landmarks that are likely to be distinct and stable across different views and altitudes. Finally, landmarks detected on the ground can be triangulated using the drone's pose and camera parameters. These 3D points can then be used to refine the drone's pose using techniques like Bundle Adjustment. Furthermore, by maintaining a map of these landmarks, the drone can achieve more robust and accurate localization, even in environments where GPS signals are weak or unreliable.
@@ -66,7 +74,12 @@ Visual-Inertial Odometry (VIO) is the method of estimating the state (pose and v
 % https://www.sightec.com/navsight/
 % https://www.youtube.com/watch?v=ilIBzMu8QDY
 % https://tipsfordrones.com/can-drones-fly-without-gps/
-\section*{Goal \& Related Works}
+\section{Related Works}
+\begin{itemize}
+    \item TartanVO
+    \item StereoVO
+\end{itemize}
+
 The primary objective of this project is to combine different modalities of data to predict the pose of the camera. The data includes stereo RGB images and IMU measurements. 
 
 The stereo images are chosen because they avoid the scale ambiguity inherent in monocular VO. The addition of inertial measurements will help in a reliable pose estimation, since visual information becomes unreliable in the case of sparse feature descriptors and high illumination variation in the scene. 
@@ -78,7 +91,12 @@ Chao et al \cite{duan2023stereovo} leverages stereo image pairs to recover scale
 
 There are two paradigms to incorporate inertial measurements with visual features for pose estimation: the loosely-coupled method and the tightly-coupled method.  Loosely-coupled methods process visual and inertial measurements separately by computing two independent motion estimates that are then fused to get the final output. Tightly-coupled methods compute the final output directly from the raw camera and IMU measurements. Tightly-coupled approaches are more accurate than the loosely-coupled ones because loosely-coupled approaches do not consider the visual and inertial information coupling, making them incapable of correcting drift in the vision-only estimator. Filtering approaches such as Extended Kalman filters have been proposed in performing sensor fusion of images and IMU data for pose estimation \cite{bloesch2015robust}.
 
-\section*{Methods}
+\section{Methods}
+\begin{itemize}
+    \item data - Chris
+    \item network diagram - each component, a whole
+\end{itemize}
+
 \subsection*{Data Preprocessing Pipeline}
 The dataset for model training will be mainly from TartanAir \cite{tartanair2020iros}. TartanAir is a large scale dataset with highly diverse scenes and motion patterns, containing more than 400,000 data frames. It provides multi-modal ground truth labels including depth, segmentation, optical flow, and camera pose. The scenes include indoor, outdoor, urban, nature, and sci-fi environments. The data is collected with a simulated pinhole camera, which moves with random and rich 6-DoF motion patterns in the 3D space.
 
@@ -102,45 +120,54 @@ We will estimate the pose of the camera from the predicted flow and depth. We wi
 %     \item Estimate 3D structure of scene from images.
 % \end{itemize}
 
-\subsection*{Project Timeline}
-\begin{table}[!h]
-\centering
-\tiny
-% \caption{Project Timeline.}
-% \resizebox{\columnwidth}{!}{%
-% \resizebox{\textwidth}{!}{%
-\resizebox{12cm}{!}{
-\begin{tabular}{p{0.25cm}p{5cm}}% {|c|c|}
-\hline
-\textbf{Week} & \textbf{Objectives} \\
-\hline
-10/10 & Finalize Project Proposal. \\
-\hline
-10/16 & Fall Break. Compile datasets from Sage AI and AirLab. \\
-\hline
-10/23 & Data Exploration. Explore TartanVO codebase. \\
-\hline
-10/30 & Adapt TartanVO codebase to use stereo images. \\
-\hline
-11/6 & Adapt TartanVO codebase to use stereo images. \\
-\hline
-11/13 & Build baselines with TartanVO. \\
-\hline
-11/20 & Add inertial data to our system. \\
-\hline
-11/27 & Final benchmark. \\
-\hline
-12/4 & Final Presentation and Report. \\
-\hline
-\end{tabular}\label{table:timeline}
-}
-\end{table}
+% \subsection*{Project Timeline}
+% \begin{table}[!h]
+% \centering
+% \tiny
+% % \caption{Project Timeline.}
+% % \resizebox{\columnwidth}{!}{%
+% % \resizebox{\textwidth}{!}{%
+% \resizebox{12cm}{!}{
+% \begin{tabular}{p{0.25cm}p{5cm}}% {|c|c|}
+% \hline
+% \textbf{Week} & \textbf{Objectives} \\
+% \hline
+% 10/10 & Finalize Project Proposal. \\
+% \hline
+% 10/16 & Fall Break. Compile datasets from Sage AI and AirLab. \\
+% \hline
+% 10/23 & Data Exploration. Explore TartanVO codebase. \\
+% \hline
+% 10/30 & Adapt TartanVO codebase to use stereo images. \\
+% \hline
+% 11/6 & Adapt TartanVO codebase to use stereo images. \\
+% \hline
+% 11/13 & Build baselines with TartanVO. \\
+% \hline
+% 11/20 & Add inertial data to our system. \\
+% \hline
+% 11/27 & Final benchmark. \\
+% \hline
+% 12/4 & Final Presentation and Report. \\
+% \hline
+% \end{tabular}\label{table:timeline}
+% }
+% \end{table}
 
-\section*{Success Criteria}
+\section{Results}
+\begin{itemize}
+    \item Qualitative results
+    \item Quantitative Metrics
+    \item Comparison 
+\end{itemize}
+
+Trajectories, just ground truth comparison, take two trajectories for Tartan/Eurok \\
 \textbf{Pose Estimation Accuracy:} The estimated pose should be compared to ground truth and average translational RMSE drift and average rtational RMSE drift is comapred with the performance of baselines. \\
 % \textbf{Map Consistency and Quality}: The constructed map should be consistent with the real environment, with minimal artifacts or gaps. \\
 \textbf{Robustness in Diverse Environments:} The system should perform reliably in a range of environments, from natural landscapes to cluttered urban.
 \textbf{Generalization to real world data:} Since the Tartanair dataset is synthetic, model should generalize to real-world datasets KITTI dataset and Euroc dataset without finetuning.
+
+\section{Conclusion}
 
 % \section*{This part will NOT be in the proposal}
 
